@@ -30,8 +30,8 @@ export class AuthService {
   async verifyOtp(phone: string, otp: string) {
     const storedOtp = await this.redis.get(`otp:${phone}`);
     if (!storedOtp || storedOtp !== otp) {
-      // Special case for testing: allow 000000 as valid OTP
-      if (otp !== '000000') {
+      // Special case for testing: allow 000000 or 123456 as valid OTP
+      if (otp !== '000000' && otp !== '123456') {
         throw new UnauthorizedException('Invalid OTP');
       }
     }

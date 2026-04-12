@@ -37,4 +37,23 @@ export class UsersController {
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/bookmarks')
+  getBookmarks(@Param('id') id: string) {
+    return this.usersService.getBookmarks(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/bookmarks')
+  addBookmark(@Param('id') id: string, @Body() data: any) {
+    return this.usersService.addBookmark(id, data);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/bookmarks/:bookmarkId')
+  removeBookmark(@Param('id') id: string, @Param('bookmarkId') bookmarkId: string) {
+    return this.usersService.removeBookmark(id, bookmarkId);
+  }
 }
+

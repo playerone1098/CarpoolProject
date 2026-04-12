@@ -14,6 +14,20 @@ export class User extends Document {
 
   @Prop()
   profilePhoto?: string;
+
+  @Prop({ type: Object })
+  homeAddress?: {
+    type?: string;
+    address: string;
+    coords: { lat: number; lng: number };
+  };
+
+  @Prop({ type: Object })
+  workAddress?: {
+    type?: string;
+    address: string;
+    coords: { lat: number; lng: number };
+  };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

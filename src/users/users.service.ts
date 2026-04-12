@@ -5,9 +5,14 @@ import { User } from './user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
+import { Bookmark } from './bookmark.schema';
+
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Bookmark.name) private bookmarkModel: Model<Bookmark>
+  ) {}
 
   async create(dto: CreateUserDto): Promise<User> {
     const user = new this.userModel(dto);
@@ -38,4 +43,19 @@ export class UsersService {
     const result = await this.userModel.findByIdAndDelete(id).exec();
     if (!result) throw new NotFoundException('User not found');
   }
+
+  async getBookmarks(userId: string): Promise<Bookmark[]> {
+    return this.bookmarkModel.find({ user_id: userId }).exec();
+  }
+
+  async addBookmark(userId: string, data: Partial<Bookmark>): Promise<Bookmark> {
+    const bookmark = new this.bookmarkModel({ ...data, user_id: userId });
+    return bookmark.save();
+  }
+
+  async removeBookmark(userId: string, bookmarkId: string): Promise<void> {
+    const result = await this.bookmarkModel.findOneAndDelete({ _id: bookmarkId, user_id: userId }).exec();
+    if (!result) throw new NotFoundException('Bookmark not found');
+  }
 }
+
