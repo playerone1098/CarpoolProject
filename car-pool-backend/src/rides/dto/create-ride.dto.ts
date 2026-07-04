@@ -3,10 +3,6 @@ import { IsNotEmpty, IsNumber, IsString, IsDateString, IsOptional, IsObject } fr
 export class CreateRideDto {
   @IsString()
   @IsNotEmpty()
-  groupId: string;
-
-  @IsString()
-  @IsNotEmpty()
   driver: string;
 
   @IsString()
@@ -26,10 +22,11 @@ export class CreateRideDto {
   rideTime: string;
 
   @IsObject()
-  @IsOptional()
   pickupCoords?: { lat: number; lng: number };
 
   @IsObject()
-  @IsOptional()
   dropCoords?: { lat: number; lng: number };
+
+  @IsNumber()
+  price?: number;
 }

@@ -3,9 +3,6 @@ import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class Ride extends Document {
-  @Prop({ type: Types.ObjectId, ref: 'Group', required: true })
-  groupId: Types.ObjectId;
-
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   driver: Types.ObjectId;
 
@@ -32,6 +29,9 @@ export class Ride extends Document {
 
   @Prop({ type: Object })
   dropCoords?: { lat: number; lng: number };
+
+  @Prop({ default: 0 })
+  price?: number;
 }
 
 export const RideSchema = SchemaFactory.createForClass(Ride);

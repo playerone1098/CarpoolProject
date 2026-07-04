@@ -25,4 +25,15 @@ export class NotificationsService {
     if (!notif) throw new NotFoundException('Notification not found');
     return notif;
   }
+
+  async unreadCount(userId: string): Promise<number> {
+    return this.notifModel.countDocuments({ userId: new Types.ObjectId(userId), read: false }).exec();
+  }
+
+  async markAllAsRead(userId: string): Promise<void> {
+    await this.notifModel.updateMany(
+      { userId: new Types.ObjectId(userId), read: false },
+      { read: true },
+    ).exec();
+  }
 }

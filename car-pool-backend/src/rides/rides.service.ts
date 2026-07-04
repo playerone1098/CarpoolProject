@@ -1,15 +1,26 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Ride } from './ride.schema';
 import { CreateRideDto } from './dto/create-ride.dto';
 import { UpdateRideDto } from './dto/update-ride.dto';
+import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 @Injectable()
 export class RidesService {
-  constructor(@InjectModel(Ride.name) private rideModel: Model<Ride>) {}
+  constructor(
+    @InjectModel(Ride.name) private rideModel: Model<Ride>,
+    private readonly usersService: UsersService,
+    private readonly notificationsService: NotificationsService,
+    private readonly notificationsGateway: NotificationsGateway,
+  ) {}
 
   async create(dto: CreateRideDto): Promise<Ride> {
+    if (new Date(dto.rideTime) < new Date()) {
+      throw new BadRequestException('Cannot create a ride in the past');
+    }
     const ride = new this.rideModel(dto);
     return ride.save();
   }
@@ -17,7 +28,7 @@ export class RidesService {
   async findAll(): Promise<Ride[]> {
     return this.rideModel
       .find({ rideTime: { $gte: new Date() } })
-      .populate('driver passengers groupId')
+      .populate('driver passengers')
       .exec();
   }
 
@@ -31,20 +42,7 @@ export class RidesService {
       ]
     }).toArray();
 
-    return this.rideModel.populate(rawRides, { path: 'driver passengers groupId' }) as unknown as Ride[];
-  }
-
-  async findByGroup(groupId: string, sortBy?: string): Promise<Ride[]> {
-    let sort: any = {};
-    if (sortBy === 'time') sort = { rideTime: 1 };
-    else if (sortBy === 'pickup') sort = { pickupLocation: 1 };
-    else if (sortBy === 'drop') sort = { dropLocation: 1 };
-
-    return this.rideModel
-      .find({ groupId: new Types.ObjectId(groupId) })
-      .populate('driver passengers')
-      .sort(sort)
-      .exec();
+    return this.rideModel.populate(rawRides, { path: 'driver passengers' }) as unknown as Ride[];
   }
 
   async findOne(id: string): Promise<Ride> {
@@ -59,7 +57,10 @@ export class RidesService {
     if (ride.driver.toString() !== userId) {
       throw new ForbiddenException('You can only edit rides posted by you');
     }
-    const updated = await this.rideModel.findByIdAndUpdate(id, dto, { new: true }).populate('driver passengers groupId').exec();
+    if (dto.rideTime && new Date(dto.rideTime) < new Date()) {
+      throw new BadRequestException('Cannot create a ride in the past');
+    }
+    const updated = await this.rideModel.findByIdAndUpdate(id, dto, { new: true }).populate('driver passengers').exec();
     if (!updated) throw new NotFoundException('Ride not found');
     return updated;
   }
@@ -83,6 +84,30 @@ export class RidesService {
 
     ride.passengers.push(new Types.ObjectId(userId));
     await ride.save();
+
+    try {
+      const joiner = await this.usersService.findOne(userId);
+      const joinerName = joiner ? joiner.name : 'A passenger';
+      
+      const notification = await this.notificationsService.create({
+        userId: ride.driver.toString(),
+        title: 'Seat Booked!',
+        message: `${joinerName} has booked a seat on your ride from ${ride.pickupLocation} to ${ride.dropLocation}.`,
+        type: 'info',
+      });
+
+      // Push real-time notification via WebSocket
+      this.notificationsGateway.sendToUser(ride.driver.toString(), 'new_notification', {
+        _id: notification._id,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        read: false,
+        createdAt: (notification as any).createdAt || new Date().toISOString(),
+      });
+    } catch (e) {
+      console.error('Failed to create booking notification:', e);
+    }
 
     return ride.populate('driver passengers');
   }

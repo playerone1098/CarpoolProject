@@ -19,10 +19,6 @@ export class RidesController {
     return this.ridesService.findAll();
   }
 
-  @Get('group/:groupId')
-  findByGroup(@Param('groupId') groupId: string, @Query('sort') sortBy: string) {
-    return this.ridesService.findByGroup(groupId, sortBy);
-  }
 
   @Get('user/:userId')
   findUserHistory(@Param('userId') userId: string) {

@@ -7,7 +7,6 @@ import { UsersModule } from './users/users.module';
 import { TripsModule } from './trips/trips.module';
 import { AuthModule } from './auth/auth.module';
 import { RedisModule } from './redis/redis.module';
-import { GroupsModule } from './groups/groups.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RidesModule } from './rides/rides.module';
 
@@ -29,7 +28,6 @@ import { RidesModule } from './rides/rides.module';
     UsersModule,
     TripsModule,
     AuthModule,
-    GroupsModule,
     NotificationsModule,
     RidesModule,
   ],

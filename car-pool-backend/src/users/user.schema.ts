@@ -34,6 +34,13 @@ export class User extends Document {
     address: string;
     coords: { lat: number; lng: number };
   };
+
+  @Prop({ type: Object })
+  carInfo?: {
+    model?: string;
+    color?: string;
+    plateNumber?: string;
+  };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -92,13 +92,13 @@ export class AuthService {
 
   async emailLogin(email: string, password: string) {
     const user = await this.usersService.findByEmail(email);
-    if (!user || !user.password) {
-      throw new UnauthorizedException('Invalid credentials');
+    if (!user) {
+      throw new UnauthorizedException('No account with this email');
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password || '');
     if (!isMatch) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Wrong password');
     }
 
     const token = this.jwtService.sign({ sub: user._id, phone: user.phone }, { expiresIn: '24h' });

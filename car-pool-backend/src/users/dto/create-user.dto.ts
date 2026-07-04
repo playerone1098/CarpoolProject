@@ -29,5 +29,13 @@ export class CreateUserDto {
     address: string;
     coords: { lat: number; lng: number };
   };
+
+  @IsObject()
+  @IsOptional()
+  carInfo?: {
+    model?: string;
+    color?: string;
+    plateNumber?: string;
+  };
 }
 

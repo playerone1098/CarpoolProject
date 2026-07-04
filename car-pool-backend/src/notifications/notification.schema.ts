@@ -7,6 +7,9 @@ export class Notification extends Document {
   userId: Types.ObjectId;
 
   @Prop({ required: true })
+  title: string;
+
+  @Prop({ required: true })
   message: string;
 
   @Prop({ enum: ['info', 'reminder', 'alert'], default: 'info' })
