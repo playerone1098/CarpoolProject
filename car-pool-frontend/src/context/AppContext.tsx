@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { api, checkServerConnection } from '../services/api';
-import type { User, Ride, Group, Trip, Notification } from '../services/api';
+import type { User, Ride, Trip, Notification } from '../services/api';
+import { connectSocket, disconnectSocket } from '../services/socket';
+import type { ToastNotification } from '../components/common/NotificationToast';
 
 interface AppContextType {
   user: User | null;
@@ -10,22 +12,22 @@ interface AppContextType {
   isMock: boolean;
   rides: Ride[];
   historyRides: Ride[];
-  groups: Group[];
   trips: Trip[];
   notifications: Notification[];
-  
+  unreadCount: number;
+
   // Auth actions
   sendOtp: (phone: string) => Promise<{ message: string }>;
   verifyOtp: (phone: string, otp: string) => Promise<void>;
   emailRegister: (name: string, email: string, password: string, phone: string) => Promise<void>;
   emailLogin: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  
+
   // Profile actions
   updateProfile: (data: Partial<User>) => Promise<void>;
   addBookmark: (bookmark: { name: string; address: string; coords: { lat: number; lng: number } }) => Promise<void>;
   removeBookmark: (bookmarkId: string) => Promise<void>;
-  
+
   // Rides actions
   refreshRides: () => Promise<void>;
   refreshHistoryRides: () => Promise<void>;
@@ -33,24 +35,26 @@ interface AppContextType {
   bookSeat: (rideId: string) => Promise<void>;
   updateRide: (rideId: string, data: any) => Promise<void>;
   deleteRide: (rideId: string) => Promise<void>;
-  
+
   // Trips actions
   refreshTrips: () => Promise<void>;
   createTrip: (data: any) => Promise<void>;
   joinTrip: (tripId: string, phone: string) => Promise<void>;
   updateTrip: (tripId: string, data: any) => Promise<void>;
   deleteTrip: (tripId: string) => Promise<void>;
-  
-  // Groups actions
-  refreshGroups: () => Promise<void>;
-  createGroup: (data: { name: string; type: 'public' | 'private' }) => Promise<void>;
-  joinGroup: (groupId: string) => Promise<void>;
-  leaveGroup: (groupId: string) => Promise<void>;
-  
+
+
+
   // Notifications
   refreshNotifications: () => Promise<void>;
+  refreshUnreadCount: () => Promise<void>;
   markNotifRead: (id: string) => Promise<void>;
-  
+  markAllNotifRead: () => Promise<void>;
+
+  // Toast notifications (real-time push)
+  toasts: ToastNotification[];
+  dismissToast: (id: string) => void;
+
   // Connection checks
   serverError: boolean;
   retryConnection: () => Promise<void>;
@@ -64,15 +68,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [loading, setLoading] = useState(true);
   const [isMock, setIsMock] = useState(false);
   const [serverError, setServerError] = useState(false);
-  
+
   const [rides, setRides] = useState<Ride[]>([]);
   const [historyRides, setHistoryRides] = useState<Ride[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [toasts, setToasts] = useState<ToastNotification[]>([]);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Toast helpers
+  const addToast = useCallback((notification: { _id: string; title: string; message: string; type?: string }) => {
+    const toast: ToastNotification = {
+      id: notification._id + '-' + Date.now(),
+      title: notification.title,
+      message: notification.message,
+      type: notification.type,
+      timestamp: Date.now(),
+    };
+    setToasts(prev => [toast, ...prev].slice(0, 5)); // Keep max 5 toasts
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   // Log Out
   const logout = useCallback(() => {
+    disconnectSocket();
     localStorage.clear();
     setUser(null);
     setToken(null);
@@ -98,14 +121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [user]);
 
-  const refreshGroups = useCallback(async () => {
-    try {
-      const list = await api.groups.list();
-      setGroups(list);
-    } catch (e) {
-      console.error('Failed to load groups:', e);
-    }
-  }, []);
+
 
   const refreshTrips = useCallback(async () => {
     try {
@@ -121,8 +137,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const list = await api.notifications.listByUser(user._id);
       setNotifications(list);
+      setUnreadCount(list.filter(n => !n.read).length);
     } catch (e) {
       console.error('Failed to load notifications:', e);
+    }
+  }, [user]);
+
+  const refreshUnreadCount = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await api.notifications.unreadCount(user._id);
+      setUnreadCount(res.count);
+    } catch (e) {
+      // Silently fail on poll errors
     }
   }, [user]);
 
@@ -178,16 +205,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLoading(false);
   }, [logout]);
 
-  // Secondary useEffect to load relational data after authentication completes
   useEffect(() => {
     if (user) {
       refreshRides();
       refreshHistoryRides();
-      refreshGroups();
       refreshTrips();
       refreshNotifications();
     }
-  }, [user, refreshRides, refreshHistoryRides, refreshGroups, refreshTrips, refreshNotifications]);
+  }, [user, refreshRides, refreshHistoryRides, refreshTrips, refreshNotifications]);
+
+  // Connect WebSocket and setup notification permissions when user is authenticated
+  useEffect(() => {
+    if (!user) return;
+
+    // Request native browser notification permissions
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(err => {
+        console.log('Failed to request notification permission:', err);
+      });
+    }
+
+    const socket = connectSocket(user._id);
+
+    // Listen for real-time push notifications
+    const handleNewNotification = (data: any) => {
+      // Add to notification list at the top
+      setNotifications(prev => [data, ...prev]);
+      // Increment unread count
+      setUnreadCount(prev => prev + 1);
+
+      // Always show in-app toast
+      addToast(data);
+
+      // Also trigger a native browser/OS push notification if the document is hidden/backgrounded
+      if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+        try {
+          new Notification(data.title, {
+            body: data.message,
+            icon: '/favicon.ico'
+          });
+        } catch (e) {
+          console.error('Error displaying native notification:', e);
+        }
+      }
+    };
+
+    socket.on('new_notification', handleNewNotification);
+
+    return () => {
+      socket.off('new_notification', handleNewNotification);
+    };
+  }, [user, addToast]);
+
+  // Fallback: poll unread count every 60s in case WebSocket misses something
+  useEffect(() => {
+    if (user) {
+      refreshUnreadCount();
+      pollIntervalRef.current = setInterval(() => {
+        refreshUnreadCount();
+      }, 60000);
+    }
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, [user, refreshUnreadCount]);
 
   // --- ACTIONS IMPLEMENTATION ---
 
@@ -257,19 +341,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const bookSeat = async (rideId: string) => {
     if (!user) return;
-    const ride = await api.rides.bookSeat(rideId, user._id);
+    await api.rides.bookSeat(rideId, user._id);
     await refreshRides();
     await refreshHistoryRides();
-    
-    // Send notification to the driver
-    const driverId = typeof ride.driver === 'object' ? ride.driver._id : ride.driver;
-    if (driverId && driverId !== user._id) {
-      await api.notifications.create({
-        userId: driverId,
-        title: 'Seat Booked!',
-        message: `${user.name} has booked a seat on your ride from ${ride.pickupLocation}.`,
-      });
-    }
   };
 
   const createTrip = async (data: any) => {
@@ -308,29 +382,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await refreshTrips();
   };
 
-  const createGroup = async (data: { name: string; type: 'public' | 'private' }) => {
-    if (!user) return;
-    await api.groups.create({
-      ...data,
-      createdBy: user._id,
-    });
-    await refreshGroups();
-  };
 
-  const joinGroup = async (groupId: string) => {
-    if (!user) return;
-    await api.groups.addMember(groupId, user._id);
-    await refreshGroups();
-  };
-
-  const leaveGroup = async (groupId: string) => {
-    if (!user) return;
-    await api.groups.removeMember(groupId, user._id);
-    await refreshGroups();
-  };
 
   const markNotifRead = async (id: string) => {
     await api.notifications.markAsRead(id);
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    await refreshNotifications();
+  };
+
+  const markAllNotifRead = async () => {
+    if (!user) return;
+    await api.notifications.markAllAsRead(user._id);
+    setUnreadCount(0);
     await refreshNotifications();
   };
 
@@ -344,9 +407,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isMock,
         rides,
         historyRides,
-        groups,
         trips,
         notifications,
+        unreadCount,
         sendOtp,
         verifyOtp,
         emailRegister,
@@ -366,12 +429,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         joinTrip,
         updateTrip,
         deleteTrip,
-        refreshGroups,
-        createGroup,
-        joinGroup,
-        leaveGroup,
         refreshNotifications,
+        refreshUnreadCount,
         markNotifRead,
+        markAllNotifRead,
+        toasts,
+        dismissToast,
         serverError,
         retryConnection,
       }}

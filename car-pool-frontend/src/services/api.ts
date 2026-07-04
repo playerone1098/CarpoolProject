@@ -15,19 +15,14 @@ export interface User {
     coords: { lat: number; lng: number };
   };
   bookmarks?: Array<{ _id: string; name: string; address: string; coords: { lat: number; lng: number } }>;
+  carInfo?: {
+    model?: string;
+    color?: string;
+    plateNumber?: string;
+  };
 }
-
-export interface Group {
-  _id: string;
-  name: string;
-  type: 'public' | 'private';
-  createdBy: string;
-  members: string[]; // User IDs
-}
-
 export interface Ride {
   _id: string;
-  groupId: any; // Group ID or Group object
   driver: any; // User ID or User object
   carModel: string;
   seatsAvailable: number;
@@ -37,6 +32,7 @@ export interface Ride {
   passengers: any[]; // User IDs or User objects
   pickupCoords?: { lat: number; lng: number };
   dropCoords?: { lat: number; lng: number };
+  price?: number;
 }
 
 export interface Trip {
@@ -297,35 +293,6 @@ export const api = {
     }
   },
 
-  // --- GROUPS ---
-  groups: {
-    create: async (data: any): Promise<Group> => {
-     
-      return request('/groups', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    },
-
-    list: async (): Promise<Group[]> => {
-      
-      return request('/groups');
-    },
-
-    addMember: async (groupId: string, userId: string): Promise<Group> => {
-     
-      return request(`/groups/${groupId}/add-member/${userId}`, {
-        method: 'POST',
-      });
-    },
-
-    removeMember: async (groupId: string, userId: string): Promise<Group> => {
-     
-      return request(`/groups/${groupId}/remove-member/${userId}`, {
-        method: 'POST',
-      });
-    }
-  },
 
   // --- NOTIFICATIONS ---
   notifications: {
@@ -344,6 +311,16 @@ export const api = {
     markAsRead: async (id: string): Promise<any> => {
       
       return request(`/notifications/read/${id}`, {
+        method: 'PUT',
+      });
+    },
+
+    unreadCount: async (userId: string): Promise<{ count: number }> => {
+      return request(`/notifications/unread-count/${userId}`);
+    },
+
+    markAllAsRead: async (userId: string): Promise<any> => {
+      return request(`/notifications/read-all/${userId}`, {
         method: 'PUT',
       });
     }
