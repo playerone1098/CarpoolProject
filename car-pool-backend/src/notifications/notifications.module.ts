@@ -4,9 +4,15 @@ import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsGateway } from './notifications.gateway';
 import { Notification, NotificationSchema } from './notification.schema';
+import { PushSubscription, PushSubscriptionSchema } from './push-subscription.schema';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Notification.name, schema: NotificationSchema }])],
+  imports: [
+    MongooseModule.forFeature([
+      { name: Notification.name, schema: NotificationSchema },
+      { name: PushSubscription.name, schema: PushSubscriptionSchema },
+    ]),
+  ],
   controllers: [NotificationsController],
   providers: [NotificationsService, NotificationsGateway],
   exports: [NotificationsService, NotificationsGateway],

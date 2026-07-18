@@ -90,7 +90,7 @@ async function request(path: string, options: RequestInit = {}): Promise<any> {
   if (response.status === 401 && path !== '/auth/refresh' && path !== '/auth/email-login' && path !== '/auth/verify-otp') {
     const refreshToken = localStorage.getItem('auth_refresh_token');
     const phone = localStorage.getItem('auth_user_phone');
-    
+
     if (refreshToken && phone) {
       try {
         const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
@@ -98,13 +98,13 @@ async function request(path: string, options: RequestInit = {}): Promise<any> {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone, refreshToken }),
         });
-        
+
         if (refreshResponse.ok) {
           const refreshData = await refreshResponse.json();
           const newToken = refreshData.token;
-          
+
           localStorage.setItem('auth_token', newToken);
-          
+
           // Retry the original request with the new token
           const retryHeaders = {
             ...headers,
@@ -126,7 +126,7 @@ async function request(path: string, options: RequestInit = {}): Promise<any> {
     let message = 'An error occurred';
     try {
       message = JSON.parse(errorText).message || message;
-    } catch {}
+    } catch { }
     throw new Error(message);
   }
 
@@ -173,7 +173,7 @@ export const api = {
     },
 
     updateProfile: async (id: string, data: Partial<User>): Promise<User> => {
-    
+
       return request(`/users/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
@@ -181,12 +181,12 @@ export const api = {
     },
 
     getBookmarks: async (id: string): Promise<any[]> => {
-    
+
       return request(`/users/${id}/bookmarks`);
     },
 
     addBookmark: async (id: string, data: { name: string; address: string; coords: { lat: number; lng: number } }): Promise<any> => {
-     
+
       return request(`/users/${id}/bookmarks`, {
         method: 'POST',
         body: JSON.stringify(data),
@@ -194,7 +194,7 @@ export const api = {
     },
 
     removeBookmark: async (id: string, bookmarkId: string): Promise<any> => {
-    
+
       return request(`/users/${id}/bookmarks/${bookmarkId}`, {
         method: 'DELETE',
       });
@@ -204,7 +204,7 @@ export const api = {
   // --- RIDES ---
   rides: {
     create: async (data: any): Promise<Ride> => {
-     
+
       return request('/rides', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -212,7 +212,7 @@ export const api = {
     },
 
     list: async (): Promise<Ride[]> => {
-     
+
       return request('/rides');
     },
 
@@ -221,7 +221,7 @@ export const api = {
     },
 
     bookSeat: async (rideId: string, userId: string): Promise<Ride> => {
-     
+
       return request(`/rides/${rideId}/book/${userId}`, {
         method: 'POST',
       });
@@ -244,7 +244,7 @@ export const api = {
   // --- TRIPS ---
   trips: {
     create: async (data: any): Promise<Trip> => {
-     
+
       return request('/trips', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -304,12 +304,12 @@ export const api = {
     },
 
     listByUser: async (userId: string): Promise<Notification[]> => {
-     
+
       return request(`/notifications/${userId}`);
     },
 
     markAsRead: async (id: string): Promise<any> => {
-      
+
       return request(`/notifications/read/${id}`, {
         method: 'PUT',
       });
@@ -323,6 +323,24 @@ export const api = {
       return request(`/notifications/read-all/${userId}`, {
         method: 'PUT',
       });
-    }
+    },
+
+    subscribePush: async (subscription: any): Promise<any> => {
+      return request('/notifications/subscribe', {
+        method: 'POST',
+        body: JSON.stringify(subscription),
+      });
+    },
+
+    unsubscribePush: async (endpoint: string): Promise<any> => {
+      return request('/notifications/unsubscribe', {
+        method: 'POST',
+        body: JSON.stringify({ endpoint }),
+      });
+    },
+
+    getVapidPublicKey: async (): Promise<{ publicKey: string }> => {
+      return request('/notifications/vapid-public-key');
+    },
   }
 }

@@ -27,7 +27,16 @@ export const Header: React.FC<HeaderProps> = ({
   showNotifications,
   setShowNotifications,
 }) => {
-  const { isMock, notifications, unreadCount, refreshNotifications, markNotifRead, markAllNotifRead } = useApp();
+  const {
+    isMock,
+    notifications,
+    unreadCount,
+    refreshNotifications,
+    markNotifRead,
+    markAllNotifRead,
+    notificationPermission,
+    requestNotificationPermission
+  } = useApp();
 
   return (
     <header style={{
@@ -237,6 +246,42 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 </div>
               </div>
+
+              {/* Notification Permission Prompt */}
+              {'Notification' in window && notificationPermission === 'default' && (
+                <div style={{
+                  padding: '12px 16px',
+                  background: 'var(--accent-glow)',
+                  borderBottom: '1px solid var(--border-color)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-primary)', lineHeight: '1.4' }}>
+                    Enable browser notifications for real-time ride and booking updates.
+                  </p>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      await requestNotificationPermission();
+                    }}
+                    style={{
+                      background: 'var(--accent)',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      width: 'fit-content',
+                      boxShadow: 'var(--shadow-sm)',
+                    }}
+                  >
+                    Enable Notifications
+                  </button>
+                </div>
+              )}
 
               {/* Notification List */}
               <div style={{

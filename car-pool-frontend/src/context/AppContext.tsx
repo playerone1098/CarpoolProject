@@ -46,6 +46,8 @@ interface AppContextType {
 
 
   // Notifications
+  notificationPermission: string;
+  requestNotificationPermission: () => Promise<boolean>;
   refreshNotifications: () => Promise<void>;
   refreshUnreadCount: () => Promise<void>;
   markNotifRead: (id: string) => Promise<void>;
@@ -75,7 +77,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
+  const [notificationPermission, setNotificationPermission] = useState<string>(
+    'Notification' in window ? Notification.permission : 'unsupported'
+  );
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const requestNotificationPermission = useCallback(async () => {
+    if (!('Notification' in window)) {
+      console.log('This browser does not support desktop notifications');
+      return false;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+
+      if (permission === 'granted' && 'serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js');
+          console.log('[SW] Registered successfully');
+
+          // Fetch public key and register push subscription
+          const { publicKey } = await api.notifications.getVapidPublicKey();
+          const convertedKey = urlBase64ToUint8Array(publicKey);
+
+          let subscription = await registration.pushManager.getSubscription();
+          if (!subscription) {
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: convertedKey,
+            });
+          }
+          await api.notifications.subscribePush(subscription);
+          console.log('[Web Push] Subscribed successfully');
+        } catch (swErr) {
+          console.error('[SW/Push] Failed to register/subscribe:', swErr);
+        }
+      }
+
+      return permission === 'granted';
+    } catch (err) {
+      console.error('Failed to request notification permission:', err);
+      return false;
+    }
+  }, []);
 
   // Toast helpers
   const addToast = useCallback((notification: { _id: string; title: string; message: string; type?: string }) => {
@@ -218,11 +262,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (!user) return;
 
-    // Request native browser notification permissions
+    // Request native browser notification permissions (fails silently on mobile browsers on load)
     if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().catch(err => {
+      Notification.requestPermission().then(permission => {
+        setNotificationPermission(permission);
+      }).catch(err => {
         console.log('Failed to request notification permission:', err);
       });
+    }
+
+    // Auto register Service Worker and sync push subscription if permission is granted
+    if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
+      navigator.serviceWorker.register('/sw.js')
+        .then(async (registration) => {
+          try {
+            const { publicKey } = await api.notifications.getVapidPublicKey();
+            const convertedKey = urlBase64ToUint8Array(publicKey);
+
+            let subscription = await registration.pushManager.getSubscription();
+            if (!subscription) {
+              subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: convertedKey,
+              });
+            }
+            await api.notifications.subscribePush(subscription);
+            console.log('[Web Push] Auto-synced push subscription');
+          } catch (e) {
+            console.error('[Web Push] Failed to auto-sync subscription:', e);
+          }
+        })
+        .catch(err => {
+          console.error('[SW] Auto-registration failed:', err);
+        });
     }
 
     const socket = connectSocket(user._id);
@@ -429,6 +501,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         joinTrip,
         updateTrip,
         deleteTrip,
+        notificationPermission,
+        requestNotificationPermission,
         refreshNotifications,
         refreshUnreadCount,
         markNotifRead,
@@ -449,3 +523,19 @@ export const useApp = () => {
   if (!context) throw new Error('useApp must be used within an AppProvider');
   return context;
 };
+
+// Helper function to convert VAPID public key to Uint8Array for pushManager subscription
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}

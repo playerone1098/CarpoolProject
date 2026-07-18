@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, Put, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, UseGuards, Req } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
+import { CreatePushSubscriptionDto } from './dto/create-push-subscription.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('notifications')
@@ -11,6 +12,25 @@ export class NotificationsController {
   @Post()
   create(@Body() dto: CreateNotificationDto) {
     return this.notifService.create(dto);
+  }
+
+  @Post('subscribe')
+  subscribe(@Body() dto: CreatePushSubscriptionDto, @Req() req: any) {
+    const userId = req.user.userId;
+    return this.notifService.subscribe(userId, dto);
+  }
+
+  @Post('unsubscribe')
+  unsubscribe(@Body('endpoint') endpoint: string, @Req() req: any) {
+    const userId = req.user.userId;
+    return this.notifService.unsubscribe(userId, endpoint);
+  }
+
+  @Get('vapid-public-key')
+  getVapidPublicKey() {
+    return {
+      publicKey: process.env.VAPID_PUBLIC_KEY || 'BFP3qdq9BnXwPPbCG1WwU1tbgSYd3rO4vGXwAT5Jv4wSc9_E1s2aof6jIbhxxEL4dXmWf8dNUiWNRtLwqf-l8_k'
+    };
   }
 
   @Get('unread-count/:userId')
