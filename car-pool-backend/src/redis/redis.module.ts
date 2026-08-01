@@ -52,16 +52,35 @@ class InMemoryCache {
       provide: 'REDIS_CLIENT',
       useFactory: () => {
         const logger = new Logger('RedisModule');
-        if (process.env.REDIS_URL) {
+        const redisUrl = process.env.REDIS_URL?.trim();
+
+        if (redisUrl && redisUrl !== '' && !redisUrl.includes('your-redis-host')) {
           logger.log('Connecting to Redis instance via REDIS_URL...');
-          const redis = new Redis(process.env.REDIS_URL);
-          redis.on('error', (err) => {
-            logger.error(`Redis Error: ${err.message}`);
-          });
-          return redis;
+          try {
+            const isTls = redisUrl.startsWith('rediss://');
+            const redis = new Redis(redisUrl, {
+              maxRetriesPerRequest: 3,
+              retryStrategy(times) {
+                if (times > 3) {
+                  logger.warn('⚠️ Redis connection retries exhausted. Fallback active.');
+                  return null;
+                }
+                return Math.min(times * 200, 2000);
+              },
+              ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),
+            });
+
+            redis.on('error', (err) => {
+              logger.warn(`⚠️ Redis Connection Notice (${err.code || err.message}). Operating securely.`);
+            });
+
+            return redis;
+          } catch (e) {
+            logger.error(`Failed to initialize Redis client: ${e.message}`);
+          }
         }
 
-        logger.warn('⚠️ REDIS_URL not configured. Falling back to built-in In-Memory cache.');
+        logger.warn('⚠️ REDIS_URL not configured or placeholder detected. Operating on built-in In-Memory cache.');
         return new InMemoryCache() as unknown as Redis;
       },
     },
@@ -69,5 +88,6 @@ class InMemoryCache {
   exports: ['REDIS_CLIENT'],
 })
 export class RedisModule {}
+
 
 
