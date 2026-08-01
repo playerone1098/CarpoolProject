@@ -71,11 +71,11 @@ class InMemoryCache {
             });
 
             redis.on('error', (err) => {
-              logger.warn(`⚠️ Redis Connection Notice (${err.code || err.message}). Operating securely.`);
+              logger.warn(`⚠️ Redis Connection Notice (${(err as any)?.code || err.message}). Operating securely.`);
             });
 
             return redis;
-          } catch (e) {
+          } catch (e: any) {
             logger.error(`Failed to initialize Redis client: ${e.message}`);
           }
         }
