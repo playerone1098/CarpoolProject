@@ -70,13 +70,14 @@ class InMemoryCache {
               ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),
             });
 
-            redis.on('error', (err) => {
-              logger.warn(`⚠️ Redis Connection Notice (${(err as any)?.code || err.message}). Operating securely.`);
+            redis.on('error', (err: { code?: string; message?: string }) => {
+              logger.warn(`⚠️ Redis Connection Notice (${err?.code || err?.message || 'Connection Notice'}). Operating securely.`);
             });
 
             return redis;
-          } catch (e: any) {
-            logger.error(`Failed to initialize Redis client: ${e.message}`);
+          } catch (e) {
+            const error = e as Error;
+            logger.error(`Failed to initialize Redis client: ${error.message}`);
           }
         }
 
