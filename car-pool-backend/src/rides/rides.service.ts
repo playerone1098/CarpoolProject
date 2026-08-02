@@ -19,6 +19,20 @@ export class RidesService {
 
   async create(dto: CreateRideDto, userId?: string): Promise<Ride> {
     const driverId = userId || dto.driver;
+    if (driverId) {
+      try {
+        const user = await this.usersService.findOne(driverId);
+        if (user) {
+          const isSeeker = user.role === 'seeker' || (!user.isCarOwner && user.role !== 'driver' && user.role !== 'giver');
+          if (isSeeker) {
+            throw new ForbiddenException('Ride seekers are not allowed to post rides. Only drivers/car owners can post rides.');
+          }
+        }
+      } catch (e) {
+        if (e instanceof ForbiddenException) throw e;
+      }
+    }
+
     const rideData: any = {
       ...dto,
       driver: driverId ? new Types.ObjectId(driverId) : undefined,

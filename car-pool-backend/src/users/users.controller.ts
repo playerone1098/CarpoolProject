@@ -15,6 +15,12 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Put('me')
+  updateMe(@Req() req: any, @Body() dto: UpdateUserDto) {
+    return this.usersService.update(req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get()
   findAll() {
     return this.usersService.findAll();
@@ -60,6 +66,30 @@ export class UsersController {
   @Delete(':id/bookmarks/:bookmarkId')
   removeBookmark(@Param('id') id: string, @Param('bookmarkId') bookmarkId: string) {
     return this.usersService.removeBookmark(id, bookmarkId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/briefs')
+  getBriefs(@Param('id') id: string) {
+    return this.usersService.getBriefs(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/briefs')
+  createBrief(@Param('id') id: string, @Body() data: any) {
+    return this.usersService.createBrief(id, data);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/briefs/:briefId')
+  removeBrief(@Param('id') id: string, @Param('briefId') briefId: string) {
+    return this.usersService.removeBrief(id, briefId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/briefs')
+  clearBriefs(@Param('id') id: string) {
+    return this.usersService.clearBriefs(id);
   }
 }
 

@@ -1,4 +1,4 @@
-import { IsPhoneNumber, IsOptional, IsString, IsObject } from 'class-validator';
+import { IsPhoneNumber, IsOptional, IsString, IsObject, IsBoolean } from 'class-validator';
 
 export class CreateUserDto {
   @IsPhoneNumber()
@@ -11,6 +11,14 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   mode?: string;
+
+  @IsString()
+  @IsOptional()
+  role?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isCarOwner?: boolean;
 
   @IsString()
   @IsOptional()

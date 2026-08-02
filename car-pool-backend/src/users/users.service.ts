@@ -1,17 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User } from './user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 import { Bookmark } from './bookmark.schema';
+import { Brief } from './brief.schema';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
-    @InjectModel(Bookmark.name) private bookmarkModel: Model<Bookmark>
+    @InjectModel(Bookmark.name) private bookmarkModel: Model<Bookmark>,
+    @InjectModel(Brief.name) private briefModel: Model<Brief>
   ) {}
 
   async create(dto: CreateUserDto): Promise<User> {
@@ -32,6 +34,9 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<any> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('User not found');
+    }
     const user = await this.userModel.findById(id).exec();
     if (!user) throw new NotFoundException('User not found');
     const bookmarks = await this.bookmarkModel.find({ user_id: id }).exec();
@@ -46,6 +51,9 @@ export class UsersService {
   }
 
   async update(id: string, dto: UpdateUserDto): Promise<any> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('User not found');
+    }
     const user = await this.userModel.findByIdAndUpdate(id, dto, { new: true }).exec();
     if (!user) throw new NotFoundException('User not found');
     const bookmarks = await this.bookmarkModel.find({ user_id: id }).exec();
@@ -60,15 +68,24 @@ export class UsersService {
   }
 
   async remove(id: string): Promise<void> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('User not found');
+    }
     const result = await this.userModel.findByIdAndDelete(id).exec();
     if (!result) throw new NotFoundException('User not found');
   }
 
   async getBookmarks(userId: string): Promise<Bookmark[]> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return [];
+    }
     return this.bookmarkModel.find({ user_id: userId }).exec();
   }
 
   async addBookmark(userId: string, data: any): Promise<Bookmark> {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user ID');
+    }
     const bookmark = new this.bookmarkModel({
       user_id: userId,
       label: data.name || data.label,
@@ -80,8 +97,48 @@ export class UsersService {
   }
 
   async removeBookmark(userId: string, bookmarkId: string): Promise<void> {
+    if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(bookmarkId)) {
+      throw new NotFoundException('Bookmark not found');
+    }
     const result = await this.bookmarkModel.findOneAndDelete({ _id: bookmarkId, user_id: userId }).exec();
     if (!result) throw new NotFoundException('Bookmark not found');
   }
-}
 
+  async getBriefs(userId: string): Promise<Brief[]> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return [];
+    }
+    return this.briefModel.find({ user_id: userId }).sort({ createdAt: -1 }).exec();
+  }
+
+  async createBrief(userId: string, data: any): Promise<Brief> {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user ID');
+    }
+    const brief = new this.briefModel({
+      user_id: userId,
+      title: data.title,
+      type: data.type || 'carpool',
+      carpoolResult: data.carpoolResult,
+      generalResult: data.generalResult,
+      chatLog: data.chatLog,
+      timestamp: data.timestamp || new Date().toISOString(),
+    });
+    return brief.save();
+  }
+
+  async removeBrief(userId: string, briefId: string): Promise<void> {
+    if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(briefId)) {
+      throw new NotFoundException('Brief not found');
+    }
+    const result = await this.briefModel.findOneAndDelete({ _id: briefId, user_id: userId }).exec();
+    if (!result) throw new NotFoundException('Brief not found');
+  }
+
+  async clearBriefs(userId: string): Promise<void> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return;
+    }
+    await this.briefModel.deleteMany({ user_id: userId }).exec();
+  }
+}

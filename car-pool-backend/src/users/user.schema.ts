@@ -18,6 +18,12 @@ export class User extends Document {
   @Prop({ default: 'free', enum: ['free', 'pro'] })
   mode: string;
 
+  @Prop({ default: 'seeker', enum: ['seeker', 'driver', 'giver'] })
+  role: string;
+
+  @Prop({ default: false })
+  isCarOwner: boolean;
+
   @Prop()
   profilePhoto?: string;
 
