@@ -81,13 +81,13 @@ export class Ride extends Document {
     updatedAt?: Date;
   };
 
-  @Prop({ default: 'MH 04 AB 1234' })
+  @Prop()
   licensePlate?: string;
 
-  @Prop({ default: 4.9 })
+  @Prop({ default: 0.0 })
   driverRating?: number;
 
-  @Prop({ default: '+91 98765 43210' })
+  @Prop()
   driverPhone?: string;
 }
 

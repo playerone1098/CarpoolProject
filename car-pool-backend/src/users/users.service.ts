@@ -94,8 +94,8 @@ export class UsersService {
     }
     const label = data.name || data.label || 'Saved Location';
     const address = data.address;
-    const lat = data.coords?.lat ?? data.latitude ?? 19.076;
-    const lng = data.coords?.lng ?? data.longitude ?? 72.8777;
+    const lat = data.coords?.lat ?? data.latitude ?? 0;
+    const lng = data.coords?.lng ?? data.longitude ?? 0;
 
     const bookmark = new this.bookmarkModel({
       user_id: userId,

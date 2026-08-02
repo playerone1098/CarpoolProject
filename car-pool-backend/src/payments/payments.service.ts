@@ -55,7 +55,7 @@ export class PaymentsService {
     }
 
     // Fare calculation: price per seat * requested seats
-    const unitPrice = ride.price && ride.price > 0 ? ride.price : 150;
+    const unitPrice = ride.price ?? 0;
     const totalFare = unitPrice * requestedSeats;
     const platformFee = Math.round(totalFare * 0.10 * 100) / 100; // 10% platform fee
     const driverEarnings = Math.round((totalFare - platformFee) * 100) / 100;

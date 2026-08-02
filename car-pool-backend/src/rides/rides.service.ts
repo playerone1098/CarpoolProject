@@ -75,6 +75,30 @@ export class RidesService {
     return [];
   }
 
+  // ─── Geocode an address string to lat/lng using OpenStreetMap Nominatim ───
+  private async geocodeLocation(address: string): Promise<{ lat: number; lng: number } | undefined> {
+    if (!address || address.trim().length === 0 || address === 'Pickup Point' || address === 'Drop Location') {
+      return undefined;
+    }
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'CarPoolApp/1.0' },
+        signal: AbortSignal.timeout(5000),
+      });
+      const data = await res.json();
+      if (data && data.length > 0 && data[0].lat && data[0].lon) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon),
+        };
+      }
+    } catch (e) {
+      this.logger.warn(`Failed to geocode address "${address}":`, e);
+    }
+    return undefined;
+  }
+
   // ─── Check if a point is within thresholdKm of any segment of a route polyline ───
   private isPointNearRoute(
     pointLat: number,
@@ -106,6 +130,19 @@ export class RidesService {
       }
     }
 
+    const pickupText = dto.pickupLocation || dto.pickup || 'Pickup Point';
+    const dropText = dto.dropLocation || dto.drop || dto.destination || 'Drop Location';
+
+    let pCoords = dto.pickupCoords;
+    let dCoords = dto.dropCoords;
+
+    if ((!pCoords || isNaN(pCoords.lat) || isNaN(pCoords.lng)) && pickupText) {
+      pCoords = await this.geocodeLocation(pickupText);
+    }
+    if ((!dCoords || isNaN(dCoords.lat) || isNaN(dCoords.lng)) && dropText) {
+      dCoords = await this.geocodeLocation(dropText);
+    }
+
     const rideData: any = {
       ...dto,
       driver: driverId ? new Types.ObjectId(driverId) : undefined,
@@ -114,11 +151,13 @@ export class RidesService {
       title: dto.title || 'Commute Ride',
       seatsAvailable: dto.seatsAvailable || dto.availableSeats || 3,
       availableSeats: dto.availableSeats || dto.seatsAvailable || 3,
-      pickupLocation: dto.pickupLocation || dto.pickup || 'Pickup Point',
-      pickup: dto.pickup || dto.pickupLocation || 'Pickup Point',
-      dropLocation: dto.dropLocation || dto.drop || dto.destination || 'Drop Location',
-      drop: dto.drop || dto.dropLocation || dto.destination || 'Drop Location',
-      destination: dto.destination || dto.dropLocation || dto.drop || 'Destination',
+      pickupLocation: pickupText,
+      pickup: pickupText,
+      dropLocation: dropText,
+      drop: dropText,
+      destination: dropText,
+      pickupCoords: pCoords,
+      dropCoords: dCoords,
       time: dto.time || 'Scheduled',
       rideTime: dto.rideTime ? new Date(dto.rideTime) : new Date(),
     };
@@ -128,8 +167,6 @@ export class RidesService {
     }
 
     // Fetch OSRM driving route if both pickup and drop coords are available
-    const pCoords = dto.pickupCoords;
-    const dCoords = dto.dropCoords;
     if (pCoords && dCoords && !isNaN(pCoords.lat) && !isNaN(pCoords.lng) && !isNaN(dCoords.lat) && !isNaN(dCoords.lng)) {
       const routeGeometry = await this.fetchRouteGeometry(pCoords, dCoords);
       if (routeGeometry.length > 0) {
@@ -429,19 +466,69 @@ export class RidesService {
     const ride = await this.rideModel.findById(rideId).populate('driver passengers').exec();
     if (!ride) throw new NotFoundException('Ride not found');
 
+    const pickupText = ride.pickupLocation || ride.pickup || 'Pickup Point';
+    const dropText = ride.dropLocation || ride.drop || ride.destination || 'Drop Location';
+
+    let pCoords = ride.pickupCoords;
+    let dCoords = ride.dropCoords;
+    let modified = false;
+
+    if ((!pCoords || isNaN(pCoords.lat) || isNaN(pCoords.lng)) && pickupText) {
+      const geocodedP = await this.geocodeLocation(pickupText);
+      if (geocodedP) {
+        pCoords = geocodedP;
+        ride.pickupCoords = pCoords;
+        modified = true;
+      }
+    }
+
+    if ((!dCoords || isNaN(dCoords.lat) || isNaN(dCoords.lng)) && dropText) {
+      const geocodedD = await this.geocodeLocation(dropText);
+      if (geocodedD) {
+        dCoords = geocodedD;
+        ride.dropCoords = dCoords;
+        modified = true;
+      }
+    }
+
+    let routeGeo = ride.routeGeometry || [];
+    if (
+      (!routeGeo || routeGeo.length === 0) &&
+      pCoords &&
+      dCoords &&
+      !isNaN(pCoords.lat) &&
+      !isNaN(pCoords.lng) &&
+      !isNaN(dCoords.lat) &&
+      !isNaN(dCoords.lng)
+    ) {
+      const fetchedPoly = await this.fetchRouteGeometry(pCoords, dCoords);
+      if (fetchedPoly && fetchedPoly.length > 0) {
+        routeGeo = fetchedPoly;
+        ride.routeGeometry = routeGeo;
+        modified = true;
+      }
+    }
+
+    if (modified) {
+      await ride.save().catch(() => {});
+    }
+
+    const effectivePickupCoords = pCoords || { lat: 0, lng: 0 };
+    const effectiveDropCoords = dCoords || { lat: 0, lng: 0 };
+
     const driverObj = (ride.driver as any) || {};
-    const driverLocation = ride.driverLocation || (ride.pickupCoords ? {
-      lat: ride.pickupCoords.lat,
-      lng: ride.pickupCoords.lng,
+    const driverLocation = ride.driverLocation || {
+      lat: effectivePickupCoords.lat,
+      lng: effectivePickupCoords.lng,
       bearing: 0,
       speed: 0,
       updatedAt: new Date(),
-    } : { lat: 19.076, lng: 72.8777, bearing: 0, speed: 0, updatedAt: new Date() });
+    };
 
     // Compute active target pin and ETA based on current state
     const targetCoords = ride.tripState === 'TRIP_IN_PROGRESS'
-      ? (ride.dropCoords || ride.pickupCoords || { lat: 19.076, lng: 72.8777 })
-      : (ride.pickupCoords || { lat: 19.076, lng: 72.8777 });
+      ? effectiveDropCoords
+      : effectivePickupCoords;
 
     const distKm = this.getHaversineDistanceKm(
       driverLocation.lat,
@@ -450,29 +537,36 @@ export class RidesService {
       targetCoords.lng,
     );
 
-    const speedKmH = driverLocation.speed && driverLocation.speed > 5 ? driverLocation.speed : 30; // fallback 30km/h
+    const speedKmH = driverLocation.speed && driverLocation.speed > 5 ? driverLocation.speed : 30;
     const etaMinutes = Math.max(1, Math.round((distKm / speedKmH) * 60));
+
+    const driverName = driverObj.name || ride.driverName || '';
+    const driverPhone = driverObj.phone || ride.driverPhone || '';
+    const driverRating = driverObj.rating ?? ride.driverRating ?? 0.0;
+    const driverCarModel = driverObj.carInfo?.model || ride.carModel || '';
+    const driverLicensePlate = driverObj.carInfo?.plateNumber || ride.licensePlate || '';
+    const driverAvatar = driverObj.profilePhoto || '';
 
     return {
       rideId: ride._id,
       tripState: ride.tripState || 'DRIVER_EN_ROUTE',
       status: ride.status || 'scheduled',
       driverLocation,
-      pickupLocation: ride.pickupLocation || ride.pickup,
-      pickupCoords: ride.pickupCoords || { lat: 19.076, lng: 72.8777 },
-      dropLocation: ride.dropLocation || ride.drop || ride.destination,
-      dropCoords: ride.dropCoords || { lat: 19.11, lng: 72.89 },
-      routeGeometry: ride.routeGeometry || [],
-      price: ride.price || 150,
+      pickupLocation: pickupText,
+      pickupCoords: effectivePickupCoords,
+      dropLocation: dropText,
+      dropCoords: effectiveDropCoords,
+      routeGeometry: routeGeo,
+      price: ride.price ?? 0,
       seatsAvailable: ride.seatsAvailable,
       driver: {
         id: driverObj._id || ride.driver,
-        name: driverObj.name || ride.driverName || 'Rahul Verma',
-        phone: driverObj.phone || ride.driverPhone || '+91 98765 43210',
-        rating: ride.driverRating || 4.9,
-        carModel: ride.carModel || 'White Swift Dzire',
-        licensePlate: ride.licensePlate || 'MH 04 AB 1234',
-        avatar: driverObj.avatar || 'https://i.pravatar.cc/150?u=driver',
+        name: driverName,
+        phone: driverPhone,
+        rating: driverRating,
+        carModel: driverCarModel,
+        licensePlate: driverLicensePlate,
+        avatar: driverAvatar,
       },
       passengers: ride.passengers,
       etaMinutes,
