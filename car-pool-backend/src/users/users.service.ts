@@ -75,33 +75,59 @@ export class UsersService {
     if (!result) throw new NotFoundException('User not found');
   }
 
-  async getBookmarks(userId: string): Promise<Bookmark[]> {
+  async getBookmarks(userId: string): Promise<any[]> {
     if (!Types.ObjectId.isValid(userId)) {
       return [];
     }
-    return this.bookmarkModel.find({ user_id: userId }).exec();
+    const bookmarks = await this.bookmarkModel.find({ user_id: userId }).exec();
+    return bookmarks.map(b => ({
+      _id: b._id,
+      name: b.label,
+      address: b.address,
+      coords: { lat: b.latitude, lng: b.longitude }
+    }));
   }
 
-  async addBookmark(userId: string, data: any): Promise<Bookmark> {
+  async addBookmark(userId: string, data: any): Promise<any> {
     if (!Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('Invalid user ID');
     }
+    const label = data.name || data.label || 'Saved Location';
+    const address = data.address;
+    const lat = data.coords?.lat ?? data.latitude ?? 19.076;
+    const lng = data.coords?.lng ?? data.longitude ?? 72.8777;
+
     const bookmark = new this.bookmarkModel({
       user_id: userId,
-      label: data.name || data.label,
-      address: data.address,
-      latitude: data.coords?.lat ?? data.latitude,
-      longitude: data.coords?.lng ?? data.longitude,
+      label: label,
+      address: address,
+      latitude: lat,
+      longitude: lng,
     });
-    return bookmark.save();
+    const saved = await bookmark.save();
+
+    const bmObj = {
+      _id: saved._id,
+      name: label,
+      address: address,
+      coords: { lat, lng }
+    };
+
+    await this.userModel.findByIdAndUpdate(userId, {
+      $push: { bookmarks: bmObj }
+    }).exec();
+
+    return bmObj;
   }
 
   async removeBookmark(userId: string, bookmarkId: string): Promise<void> {
     if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(bookmarkId)) {
       throw new NotFoundException('Bookmark not found');
     }
-    const result = await this.bookmarkModel.findOneAndDelete({ _id: bookmarkId, user_id: userId }).exec();
-    if (!result) throw new NotFoundException('Bookmark not found');
+    await this.bookmarkModel.findOneAndDelete({ _id: bookmarkId, user_id: userId }).exec();
+    await this.userModel.findByIdAndUpdate(userId, {
+      $pull: { bookmarks: { _id: bookmarkId } }
+    }).exec();
   }
 
   async getBriefs(userId: string): Promise<Brief[]> {

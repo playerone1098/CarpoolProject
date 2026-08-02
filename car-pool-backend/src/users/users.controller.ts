@@ -51,21 +51,42 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me/bookmarks')
+  getMeBookmarks(@Req() req: any) {
+    return this.usersService.getBookmarks(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/bookmarks')
+  addMeBookmark(@Req() req: any, @Body() data: any) {
+    return this.usersService.addBookmark(req.user.userId, data);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('me/bookmarks/:bookmarkId')
+  removeMeBookmark(@Req() req: any, @Param('bookmarkId') bookmarkId: string) {
+    return this.usersService.removeBookmark(req.user.userId, bookmarkId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id/bookmarks')
-  getBookmarks(@Param('id') id: string) {
-    return this.usersService.getBookmarks(id);
+  getBookmarks(@Param('id') id: string, @Req() req: any) {
+    const targetId = id === 'me' ? req.user.userId : id;
+    return this.usersService.getBookmarks(targetId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/bookmarks')
-  addBookmark(@Param('id') id: string, @Body() data: any) {
-    return this.usersService.addBookmark(id, data);
+  addBookmark(@Param('id') id: string, @Body() data: any, @Req() req: any) {
+    const targetId = id === 'me' ? req.user.userId : id;
+    return this.usersService.addBookmark(targetId, data);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id/bookmarks/:bookmarkId')
-  removeBookmark(@Param('id') id: string, @Param('bookmarkId') bookmarkId: string) {
-    return this.usersService.removeBookmark(id, bookmarkId);
+  removeBookmark(@Param('id') id: string, @Param('bookmarkId') bookmarkId: string, @Req() req: any) {
+    const targetId = id === 'me' ? req.user.userId : id;
+    return this.usersService.removeBookmark(targetId, bookmarkId);
   }
 
   @UseGuards(JwtAuthGuard)

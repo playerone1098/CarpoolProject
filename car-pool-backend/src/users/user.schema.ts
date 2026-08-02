@@ -9,6 +9,9 @@ export class User extends Document {
   @Prop({ default: 'User' })
   name: string;
 
+  @Prop({ default: 'unspecified' })
+  gender?: string;
+
   @Prop({ unique: true, sparse: true, trim: true, lowercase: true })
   email?: string;
 
@@ -47,6 +50,15 @@ export class User extends Document {
     color?: string;
     plateNumber?: string;
   };
+
+  @Prop({ type: Array, default: [] })
+  bookmarks?: Array<{
+    _id?: string;
+    name: string;
+    address: string;
+    coords?: { lat: number; lng: number };
+    icon?: string;
+  }>;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -10,6 +10,10 @@ export class CreateUserDto {
 
   @IsString()
   @IsOptional()
+  gender?: string;
+
+  @IsString()
+  @IsOptional()
   mode?: string;
 
   @IsString()
@@ -45,5 +49,8 @@ export class CreateUserDto {
     color?: string;
     plateNumber?: string;
   };
+
+  @IsOptional()
+  bookmarks?: any[];
 }
 
