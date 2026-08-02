@@ -395,6 +395,47 @@ export class RidesService {
     };
 
     ride.driverLocation = updatedLoc;
+
+    // Check 100m geofence radius to destination
+    let dropCoords = ride.dropCoords;
+    if ((!dropCoords || isNaN(dropCoords.lat) || isNaN(dropCoords.lng)) && (ride.dropLocation || ride.destination || ride.drop)) {
+      const dropText = ride.dropLocation || ride.destination || ride.drop || '';
+      dropCoords = await this.geocodeLocation(dropText);
+      if (dropCoords) {
+        ride.dropCoords = dropCoords;
+      }
+    }
+
+    let autoCompleted = false;
+    let distanceMeters = 0;
+
+    if (dropCoords && typeof dropCoords.lat === 'number' && typeof dropCoords.lng === 'number' && !isNaN(dropCoords.lat) && !isNaN(dropCoords.lng) && ride.tripState !== 'TRIP_COMPLETED') {
+      const distanceKm = this.getHaversineDistanceKm(
+        locationData.lat,
+        locationData.lng,
+        dropCoords.lat,
+        dropCoords.lng,
+      );
+      distanceMeters = Math.round(distanceKm * 1000);
+
+      // 100 meters radius threshold (0.1 km)
+      if (distanceKm <= 0.1) {
+        ride.tripState = 'TRIP_COMPLETED';
+        ride.status = 'completed';
+        autoCompleted = true;
+        this.logger.log(`Ride ${rideId} auto-completed: driver reached within ${distanceMeters}m of destination.`);
+
+        // Broadcast trip completed state transition to room subscribers
+        this.notificationsGateway.broadcastToTrip(rideId, 'trip_state_updated', {
+          rideId,
+          tripState: 'TRIP_COMPLETED',
+          timestamp: new Date().toISOString(),
+          autoCompleted: true,
+          distanceMeters,
+        });
+      }
+    }
+
     await ride.save();
 
     // Broadcast location update over WebSocket channel
@@ -403,9 +444,19 @@ export class RidesService {
       location: updatedLoc,
       tripState: ride.tripState || 'DRIVER_EN_ROUTE',
       timestamp: new Date().toISOString(),
+      autoCompleted,
+      distanceMeters,
     });
 
-    return { ok: true, rideId, location: updatedLoc };
+    return {
+      ok: true,
+      rideId,
+      location: updatedLoc,
+      tripState: ride.tripState || 'DRIVER_EN_ROUTE',
+      status: ride.status || 'scheduled',
+      autoCompleted,
+      distanceMeters,
+    };
   }
 
   async updateTripState(rideId: string, tripState: string) {
