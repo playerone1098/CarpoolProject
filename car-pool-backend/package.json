@@ -5,7 +5,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
-    "build": "nest build",
+    "build": "rimraf dist tsconfig.build.tsbuildinfo && nest build",
     "db:clear": "npx ts-node clear-db.ts"
   },
   "dependencies": {
