@@ -10,8 +10,9 @@ export class RidesController {
   constructor(private readonly ridesService: RidesService) {}
 
   @Post()
-  create(@Body() dto: CreateRideDto) {
-    return this.ridesService.create(dto);
+  create(@Body() dto: CreateRideDto, @Req() req: any) {
+    const userId = req.user?.userId;
+    return this.ridesService.create(dto, userId);
   }
 
   @Get()
@@ -19,6 +20,10 @@ export class RidesController {
     return this.ridesService.findAll();
   }
 
+  @Get('group/:groupId')
+  findByGroup(@Param('groupId') groupId: string) {
+    return this.ridesService.findByGroup(groupId);
+  }
 
   @Get('user/:userId')
   findUserHistory(@Param('userId') userId: string) {

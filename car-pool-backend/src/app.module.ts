@@ -11,6 +11,7 @@ import { AuthModule } from './auth/auth.module';
 import { RedisModule } from './redis/redis.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RidesModule } from './rides/rides.module';
+import { GroupsModule } from './groups/groups.module';
 
 @Module({
   imports: [
@@ -32,7 +33,9 @@ import { RidesModule } from './rides/rides.module';
     AuthModule,
     NotificationsModule,
     RidesModule,
+    GroupsModule,
   ],
+
   controllers: [AppController],
   providers: [AppService],
 })

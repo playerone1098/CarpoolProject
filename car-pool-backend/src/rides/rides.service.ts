@@ -17,17 +17,46 @@ export class RidesService {
     private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
-  async create(dto: CreateRideDto): Promise<Ride> {
-    if (new Date(dto.rideTime) < new Date()) {
-      throw new BadRequestException('Cannot create a ride in the past');
+  async create(dto: CreateRideDto, userId?: string): Promise<Ride> {
+    const driverId = userId || dto.driver;
+    const rideData: any = {
+      ...dto,
+      driver: driverId ? new Types.ObjectId(driverId) : undefined,
+      driverName: dto.driverName || 'Community Driver',
+      carModel: dto.carModel || 'Standard Sedan',
+      title: dto.title || 'Commute Ride',
+      seatsAvailable: dto.seatsAvailable || dto.availableSeats || 3,
+      availableSeats: dto.availableSeats || dto.seatsAvailable || 3,
+      pickupLocation: dto.pickupLocation || dto.pickup || 'Pickup Point',
+      pickup: dto.pickup || dto.pickupLocation || 'Pickup Point',
+      dropLocation: dto.dropLocation || dto.drop || dto.destination || 'Drop Location',
+      drop: dto.drop || dto.dropLocation || dto.destination || 'Drop Location',
+      destination: dto.destination || dto.dropLocation || dto.drop || 'Destination',
+      time: dto.time || 'Scheduled',
+      rideTime: dto.rideTime ? new Date(dto.rideTime) : new Date(),
+    };
+
+    if (dto.groupId && Types.ObjectId.isValid(dto.groupId)) {
+      rideData.groupId = new Types.ObjectId(dto.groupId);
     }
-    const ride = new this.rideModel(dto);
+
+    const ride = new this.rideModel(rideData);
     return ride.save();
   }
 
   async findAll(): Promise<Ride[]> {
     return this.rideModel
-      .find({ rideTime: { $gte: new Date() } })
+      .find()
+      .populate('driver passengers')
+      .exec();
+  }
+
+  async findByGroup(groupId: string): Promise<Ride[]> {
+    if (!groupId || groupId === 'all' || !Types.ObjectId.isValid(groupId)) {
+      return this.findAll();
+    }
+    return this.rideModel
+      .find({ groupId: new Types.ObjectId(groupId) })
       .populate('driver passengers')
       .exec();
   }
@@ -57,7 +86,7 @@ export class RidesService {
     if (ride.driver.toString() !== userId) {
       throw new ForbiddenException('You can only edit rides posted by you');
     }
-    if (dto.rideTime && new Date(dto.rideTime) < new Date()) {
+    if (dto.rideTime && new Date(dto.rideTime).getTime() < Date.now() - 5 * 60 * 1000) {
       throw new BadRequestException('Cannot create a ride in the past');
     }
     const updated = await this.rideModel.findByIdAndUpdate(id, dto, { new: true }).populate('driver passengers').exec();
