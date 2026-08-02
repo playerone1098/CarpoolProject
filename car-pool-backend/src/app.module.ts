@@ -13,6 +13,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { RidesModule } from './rides/rides.module';
 import { GroupsModule } from './groups/groups.module';
 import { ChatModule } from './chat/chat.module';
+import { RatingsModule } from './ratings/ratings.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { ChatModule } from './chat/chat.module';
     RidesModule,
     GroupsModule,
     ChatModule,
+    RatingsModule,
+    PaymentsModule,
   ],
 
   controllers: [AppController],

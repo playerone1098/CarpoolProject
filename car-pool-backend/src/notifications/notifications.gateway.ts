@@ -54,4 +54,74 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       console.log(`[WS] Pushed "${event}" to user ${userId} (${sockets.size} socket(s))`);
     }
   }
+
+  // ─── Real-Time Live Tracking Gateway Channels (Story 3.2) ───
+
+  @SubscribeMessage('subscribe_trip')
+  handleSubscribeTrip(client: Socket, payload: { rideId: string }) {
+    if (payload?.rideId) {
+      const room = `trip_${payload.rideId}`;
+      client.join(room);
+      console.log(`[WS] Socket ${client.id} joined channel ${room}`);
+      client.emit('subscribed_trip_ack', { rideId: payload.rideId, room, status: 'joined' });
+    }
+  }
+
+  @SubscribeMessage('unsubscribe_trip')
+  handleUnsubscribeTrip(client: Socket, payload: { rideId: string }) {
+    if (payload?.rideId) {
+      const room = `trip_${payload.rideId}`;
+      client.leave(room);
+      console.log(`[WS] Socket ${client.id} left channel ${room}`);
+    }
+  }
+
+  @SubscribeMessage('update_location')
+  handleUpdateLocation(
+    client: Socket,
+    payload: {
+      rideId: string;
+      lat: number;
+      lng: number;
+      bearing?: number;
+      speed?: number;
+      etaMinutes?: number;
+      remainingKm?: number;
+    },
+  ) {
+    if (payload?.rideId) {
+      const room = `trip_${payload.rideId}`;
+      const data = {
+        ...payload,
+        timestamp: new Date().toISOString(),
+      };
+      this.server.to(room).emit('location_updated', data);
+      console.log(`[WS] Location update broadcast to channel ${room}: lat ${payload.lat}, lng ${payload.lng}`);
+    }
+  }
+
+  @SubscribeMessage('update_trip_state')
+  handleUpdateTripState(
+    client: Socket,
+    payload: { rideId: string; tripState: string; note?: string },
+  ) {
+    if (payload?.rideId && payload?.tripState) {
+      const room = `trip_${payload.rideId}`;
+      const data = {
+        ...payload,
+        timestamp: new Date().toISOString(),
+      };
+      this.server.to(room).emit('trip_state_updated', data);
+      console.log(`[WS] Trip state updated broadcast to channel ${room}: ${payload.tripState}`);
+    }
+  }
+
+  /**
+   * Broadcast an event to all subscribers of a specific trip channel.
+   */
+  broadcastToTrip(rideId: string, event: string, data: any) {
+    const room = `trip_${rideId}`;
+    this.server.to(room).emit(event, data);
+    console.log(`[WS] Broadcasted "${event}" to channel ${room}`);
+  }
 }

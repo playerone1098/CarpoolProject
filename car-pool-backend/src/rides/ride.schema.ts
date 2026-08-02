@@ -61,6 +61,34 @@ export class Ride extends Document {
 
   @Prop({ default: 0 })
   price?: number;
+
+  @Prop({ default: 'scheduled', enum: ['scheduled', 'ongoing', 'completed', 'cancelled'] })
+  status?: string;
+
+  // Real-Time Vehicle Live Tracking Fields (Story 3.2)
+  @Prop({
+    default: 'DRIVER_EN_ROUTE',
+    enum: ['DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'TRIP_IN_PROGRESS', 'TRIP_COMPLETED'],
+  })
+  tripState?: string;
+
+  @Prop({ type: Object })
+  driverLocation?: {
+    lat: number;
+    lng: number;
+    bearing?: number;
+    speed?: number;
+    updatedAt?: Date;
+  };
+
+  @Prop({ default: 'MH 04 AB 1234' })
+  licensePlate?: string;
+
+  @Prop({ default: 4.9 })
+  driverRating?: number;
+
+  @Prop({ default: '+91 98765 43210' })
+  driverPhone?: string;
 }
 
 export const RideSchema = SchemaFactory.createForClass(Ride);

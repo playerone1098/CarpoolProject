@@ -54,6 +54,21 @@ export class User extends Document {
     plateNumber?: string;
   };
 
+  @Prop({ default: 5.0 })
+  rating?: number;
+
+  @Prop({ default: 0 })
+  ratingCount?: number;
+
+  @Prop({ type: [Number], default: [] })
+  recentRatings?: number[];
+
+  @Prop({ default: 500 })
+  walletBalance?: number;
+
+  @Prop({ default: 0 })
+  payoutBalance?: number;
+
   @Prop({ type: Array, default: [] })
   bookmarks?: Array<{
     _id?: string;

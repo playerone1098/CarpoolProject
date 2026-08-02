@@ -339,4 +339,144 @@ export class RidesService {
 
     return ride.populate('driver passengers');
   }
+
+  // ─── Story 3.2: Live Vehicle Tracking & State Machine Methods ───
+
+  async updateDriverLocation(
+    rideId: string,
+    locationData: { lat: number; lng: number; bearing?: number; speed?: number },
+  ) {
+    const ride = await this.rideModel.findById(rideId).exec();
+    if (!ride) throw new NotFoundException('Ride not found');
+
+    const updatedLoc = {
+      lat: locationData.lat,
+      lng: locationData.lng,
+      bearing: locationData.bearing || 0,
+      speed: locationData.speed || 0,
+      updatedAt: new Date(),
+    };
+
+    ride.driverLocation = updatedLoc;
+    await ride.save();
+
+    // Broadcast location update over WebSocket channel
+    this.notificationsGateway.broadcastToTrip(rideId, 'location_updated', {
+      rideId,
+      location: updatedLoc,
+      tripState: ride.tripState || 'DRIVER_EN_ROUTE',
+      timestamp: new Date().toISOString(),
+    });
+
+    return { ok: true, rideId, location: updatedLoc };
+  }
+
+  async updateTripState(rideId: string, tripState: string) {
+    const validStates = ['DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'TRIP_IN_PROGRESS', 'TRIP_COMPLETED'];
+    if (!validStates.includes(tripState)) {
+      throw new BadRequestException(`Invalid tripState: ${tripState}`);
+    }
+
+    const ride = await this.rideModel.findById(rideId).populate('driver passengers').exec();
+    if (!ride) throw new NotFoundException('Ride not found');
+
+    ride.tripState = tripState;
+    if (tripState === 'TRIP_IN_PROGRESS' || tripState === 'TRIP_COMPLETED') {
+      ride.status = tripState === 'TRIP_COMPLETED' ? 'completed' : 'ongoing';
+    }
+    await ride.save();
+
+    // Broadcast state transition to room subscribers
+    this.notificationsGateway.broadcastToTrip(rideId, 'trip_state_updated', {
+      rideId,
+      tripState,
+      timestamp: new Date().toISOString(),
+    });
+
+    // If driver arrived, trigger high-priority push notification to all riders
+    if (tripState === 'DRIVER_ARRIVED') {
+      const driverName = (ride.driver as any)?.name || ride.driverName || 'Your driver';
+      const passengers = ride.passengers || [];
+      for (const passenger of passengers) {
+        const pId = typeof passenger === 'object' ? (passenger as any)._id?.toString() : String(passenger);
+        if (pId) {
+          try {
+            const notif = await this.notificationsService.create({
+              userId: pId,
+              title: 'Driver Arrived! 🚗',
+              message: `Your driver ${driverName} has arrived at the pickup point!`,
+              type: 'info',
+            });
+            this.notificationsGateway.sendToUser(pId, 'new_notification', {
+              _id: notif._id,
+              title: notif.title,
+              message: notif.message,
+              type: notif.type,
+              read: false,
+              createdAt: new Date().toISOString(),
+            });
+          } catch (e) {
+            this.logger.error('Failed to notify rider of arrival:', e);
+          }
+        }
+      }
+    }
+
+    return ride;
+  }
+
+  async getRideTracking(rideId: string) {
+    const ride = await this.rideModel.findById(rideId).populate('driver passengers').exec();
+    if (!ride) throw new NotFoundException('Ride not found');
+
+    const driverObj = (ride.driver as any) || {};
+    const driverLocation = ride.driverLocation || (ride.pickupCoords ? {
+      lat: ride.pickupCoords.lat,
+      lng: ride.pickupCoords.lng,
+      bearing: 0,
+      speed: 0,
+      updatedAt: new Date(),
+    } : { lat: 19.076, lng: 72.8777, bearing: 0, speed: 0, updatedAt: new Date() });
+
+    // Compute active target pin and ETA based on current state
+    const targetCoords = ride.tripState === 'TRIP_IN_PROGRESS'
+      ? (ride.dropCoords || ride.pickupCoords || { lat: 19.076, lng: 72.8777 })
+      : (ride.pickupCoords || { lat: 19.076, lng: 72.8777 });
+
+    const distKm = this.getHaversineDistanceKm(
+      driverLocation.lat,
+      driverLocation.lng,
+      targetCoords.lat,
+      targetCoords.lng,
+    );
+
+    const speedKmH = driverLocation.speed && driverLocation.speed > 5 ? driverLocation.speed : 30; // fallback 30km/h
+    const etaMinutes = Math.max(1, Math.round((distKm / speedKmH) * 60));
+
+    return {
+      rideId: ride._id,
+      tripState: ride.tripState || 'DRIVER_EN_ROUTE',
+      status: ride.status || 'scheduled',
+      driverLocation,
+      pickupLocation: ride.pickupLocation || ride.pickup,
+      pickupCoords: ride.pickupCoords || { lat: 19.076, lng: 72.8777 },
+      dropLocation: ride.dropLocation || ride.drop || ride.destination,
+      dropCoords: ride.dropCoords || { lat: 19.11, lng: 72.89 },
+      routeGeometry: ride.routeGeometry || [],
+      price: ride.price || 150,
+      seatsAvailable: ride.seatsAvailable,
+      driver: {
+        id: driverObj._id || ride.driver,
+        name: driverObj.name || ride.driverName || 'Rahul Verma',
+        phone: driverObj.phone || ride.driverPhone || '+91 98765 43210',
+        rating: ride.driverRating || 4.9,
+        carModel: ride.carModel || 'White Swift Dzire',
+        licensePlate: ride.licensePlate || 'MH 04 AB 1234',
+        avatar: driverObj.avatar || 'https://i.pravatar.cc/150?u=driver',
+      },
+      passengers: ride.passengers,
+      etaMinutes,
+      remainingDistanceKm: parseFloat(distKm.toFixed(1)),
+    };
+  }
 }

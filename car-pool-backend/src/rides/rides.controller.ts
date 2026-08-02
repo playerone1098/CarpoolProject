@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, Patch, Query, UseGuards, Req } from '@nestjs/common';
 import { RidesService } from './rides.service';
 import { CreateRideDto } from './dto/create-ride.dto';
 import { UpdateRideDto } from './dto/update-ride.dto';
@@ -13,11 +13,6 @@ export class RidesController {
   create(@Body() dto: CreateRideDto, @Req() req: any) {
     const userId = req.user?.userId;
     return this.ridesService.create(dto, userId);
-  }
-
-  @Get()
-  findAll() {
-    return this.ridesService.findAll();
   }
 
   // En-route search: GET /rides/search?pickupLat=...&pickupLng=...&dropLat=...&dropLng=...&radius=3
@@ -46,6 +41,28 @@ export class RidesController {
   @Get('user/:userId')
   findUserHistory(@Param('userId') userId: string) {
     return this.ridesService.findUserHistory(userId);
+  }
+
+  // Story 3.2: Live Tracking Endpoints
+  @Get(':id/tracking')
+  getRideTracking(@Param('id') id: string) {
+    return this.ridesService.getRideTracking(id);
+  }
+
+  @Patch(':id/location')
+  updateDriverLocation(
+    @Param('id') id: string,
+    @Body() body: { lat: number; lng: number; bearing?: number; speed?: number },
+  ) {
+    return this.ridesService.updateDriverLocation(id, body);
+  }
+
+  @Patch(':id/trip-state')
+  updateTripState(
+    @Param('id') id: string,
+    @Body() body: { tripState: string },
+  ) {
+    return this.ridesService.updateTripState(id, body.tripState);
   }
 
   @Get(':id')
