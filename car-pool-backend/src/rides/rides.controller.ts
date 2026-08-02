@@ -20,6 +20,24 @@ export class RidesController {
     return this.ridesService.findAll();
   }
 
+  // En-route search: GET /rides/search?pickupLat=...&pickupLng=...&dropLat=...&dropLng=...&radius=3
+  @Get('search')
+  searchEnRoute(
+    @Query('pickupLat') pickupLat?: string,
+    @Query('pickupLng') pickupLng?: string,
+    @Query('dropLat') dropLat?: string,
+    @Query('dropLng') dropLng?: string,
+    @Query('radius') radius?: string,
+  ) {
+    return this.ridesService.searchEnRoute(
+      pickupLat ? parseFloat(pickupLat) : undefined,
+      pickupLng ? parseFloat(pickupLng) : undefined,
+      dropLat ? parseFloat(dropLat) : undefined,
+      dropLng ? parseFloat(dropLng) : undefined,
+      radius ? parseFloat(radius) : 3,
+    );
+  }
+
   @Get('group/:groupId')
   findByGroup(@Param('groupId') groupId: string) {
     return this.ridesService.findByGroup(groupId);

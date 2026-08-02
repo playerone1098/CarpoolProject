@@ -54,6 +54,11 @@ export class Ride extends Document {
   @Prop({ type: Object })
   dropCoords?: { lat: number; lng: number };
 
+  // Driving route polyline from OSRM — array of [lat, lng] points along the route
+  // Used for en-route matching (finding if a searcher's pickup/drop falls along this ride's path)
+  @Prop({ type: [[Number]], default: [] })
+  routeGeometry?: number[][];
+
   @Prop({ default: 0 })
   price?: number;
 }
