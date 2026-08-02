@@ -28,6 +28,10 @@ export class CreateUserDto {
   @IsOptional()
   profilePhoto?: string;
 
+  @IsString()
+  @IsOptional()
+  fcmToken?: string;
+
   @IsObject()
   @IsOptional()
   homeAddress?: {

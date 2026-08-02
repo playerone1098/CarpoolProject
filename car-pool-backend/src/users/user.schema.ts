@@ -30,6 +30,9 @@ export class User extends Document {
   @Prop()
   profilePhoto?: string;
 
+  @Prop()
+  fcmToken?: string;
+
   @Prop({ type: Object })
   homeAddress?: {
     type?: string;

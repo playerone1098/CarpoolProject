@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -10,6 +10,20 @@ export class ChatController {
   @Get('ride/:rideId')
   getRideMessages(@Param('rideId') rideId: string) {
     return this.chatService.getRideMessages(rideId);
+  }
+
+  /**
+   * Returns messages sent TO the current user since a given timestamp.
+   * Used by the frontend notification system.
+   * GET /chat/unread?since=2024-01-01T00:00:00.000Z
+   */
+  @Get('unread')
+  getUnreadMessages(
+    @Req() req: any,
+    @Query('since') since?: string,
+  ) {
+    const userId = req.user?.userId;
+    return this.chatService.getUnreadMessages(userId, since);
   }
 
   @Post('send')
