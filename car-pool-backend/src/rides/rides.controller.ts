@@ -9,6 +9,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class RidesController {
   constructor(private readonly ridesService: RidesService) {}
 
+  @Get()
+  findAll() {
+    return this.ridesService.findAll();
+  }
+
   @Post()
   create(@Body() dto: CreateRideDto, @Req() req: any) {
     const userId = req.user?.userId;
