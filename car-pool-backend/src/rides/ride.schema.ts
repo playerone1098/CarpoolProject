@@ -67,8 +67,8 @@ export class Ride extends Document {
 
   // Real-Time Vehicle Live Tracking Fields (Story 3.2)
   @Prop({
-    default: 'DRIVER_EN_ROUTE',
-    enum: ['DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'TRIP_IN_PROGRESS', 'TRIP_COMPLETED'],
+    default: 'SCHEDULED',
+    enum: ['SCHEDULED', 'DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'TRIP_IN_PROGRESS', 'TRIP_COMPLETED'],
   })
   tripState?: string;
 

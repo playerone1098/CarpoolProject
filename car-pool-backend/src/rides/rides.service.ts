@@ -442,7 +442,7 @@ export class RidesService {
     this.notificationsGateway.broadcastToTrip(rideId, 'location_updated', {
       rideId,
       location: updatedLoc,
-      tripState: ride.tripState || 'DRIVER_EN_ROUTE',
+      tripState: ride.tripState || 'SCHEDULED',
       timestamp: new Date().toISOString(),
       autoCompleted,
       distanceMeters,
@@ -452,7 +452,7 @@ export class RidesService {
       ok: true,
       rideId,
       location: updatedLoc,
-      tripState: ride.tripState || 'DRIVER_EN_ROUTE',
+      tripState: ride.tripState || 'SCHEDULED',
       status: ride.status || 'scheduled',
       autoCompleted,
       distanceMeters,
@@ -460,7 +460,7 @@ export class RidesService {
   }
 
   async updateTripState(rideId: string, tripState: string) {
-    const validStates = ['DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'TRIP_IN_PROGRESS', 'TRIP_COMPLETED'];
+    const validStates = ['SCHEDULED', 'DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'TRIP_IN_PROGRESS', 'TRIP_COMPLETED'];
     if (!validStates.includes(tripState)) {
       throw new BadRequestException(`Invalid tripState: ${tripState}`);
     }
@@ -600,7 +600,7 @@ export class RidesService {
 
     return {
       rideId: ride._id,
-      tripState: ride.tripState || 'DRIVER_EN_ROUTE',
+      tripState: ride.tripState || 'SCHEDULED',
       status: ride.status || 'scheduled',
       driverLocation,
       pickupLocation: pickupText,
