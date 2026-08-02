@@ -12,6 +12,7 @@ import { RedisModule } from './redis/redis.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RidesModule } from './rides/rides.module';
 import { GroupsModule } from './groups/groups.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { GroupsModule } from './groups/groups.module';
     NotificationsModule,
     RidesModule,
     GroupsModule,
+    ChatModule,
   ],
 
   controllers: [AppController],

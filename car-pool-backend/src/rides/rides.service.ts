@@ -121,33 +121,52 @@ export class RidesService {
     const ride = await this.rideModel.findById(rideId).exec();
     if (!ride) throw new NotFoundException('Ride not found');
 
-    if (ride.seatsAvailable <= ride.passengers.length) {
-      throw new Error('No seats available');
+    const driverIdStr = ride.driver ? ride.driver.toString() : '';
+    if (driverIdStr === userId) {
+      throw new BadRequestException('You cannot book a seat on your own ride');
+    }
+
+    const isAlreadyPassenger = (ride.passengers || []).some(
+      (p) => p.toString() === userId
+    );
+    if (isAlreadyPassenger) {
+      throw new BadRequestException('You have already booked a seat on this ride');
+    }
+
+    const available = ride.availableSeats !== undefined ? ride.availableSeats : ride.seatsAvailable;
+    if (available <= 0) {
+      throw new BadRequestException('No available seats left on this ride');
     }
 
     ride.passengers.push(new Types.ObjectId(userId));
+    if (ride.seatsAvailable > 0) ride.seatsAvailable -= 1;
+    if (ride.availableSeats !== undefined && ride.availableSeats > 0) {
+      ride.availableSeats -= 1;
+    }
     await ride.save();
 
     try {
       const joiner = await this.usersService.findOne(userId);
       const joinerName = joiner ? joiner.name : 'A passenger';
       
-      const notification = await this.notificationsService.create({
-        userId: ride.driver.toString(),
-        title: 'Seat Booked!',
-        message: `${joinerName} has booked a seat on your ride from ${ride.pickupLocation} to ${ride.dropLocation}.`,
-        type: 'info',
-      });
+      if (ride.driver) {
+        const notification = await this.notificationsService.create({
+          userId: ride.driver.toString(),
+          title: 'Seat Booked!',
+          message: `${joinerName} has booked a seat on your ride from ${ride.pickupLocation} to ${ride.dropLocation}.`,
+          type: 'info',
+        });
 
-      // Push real-time notification via WebSocket
-      this.notificationsGateway.sendToUser(ride.driver.toString(), 'new_notification', {
-        _id: notification._id,
-        title: notification.title,
-        message: notification.message,
-        type: notification.type,
-        read: false,
-        createdAt: (notification as any).createdAt || new Date().toISOString(),
-      });
+        // Push real-time notification via WebSocket
+        this.notificationsGateway.sendToUser(ride.driver.toString(), 'new_notification', {
+          _id: notification._id,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          read: false,
+          createdAt: (notification as any).createdAt || new Date().toISOString(),
+        });
+      }
     } catch (e) {
       console.error('Failed to create booking notification:', e);
     }

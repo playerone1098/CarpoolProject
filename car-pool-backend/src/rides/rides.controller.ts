@@ -47,6 +47,12 @@ export class RidesController {
     return this.ridesService.remove(id, userId);
   }
 
+  @Post(':id/book')
+  bookSeatAuth(@Param('id') rideId: string, @Req() req: any) {
+    const userId = req.user?.userId;
+    return this.ridesService.bookSeat(rideId, userId);
+  }
+
   @Post(':id/book/:userId')
   bookSeat(@Param('id') rideId: string, @Param('userId') userId: string) {
     return this.ridesService.bookSeat(rideId, userId);

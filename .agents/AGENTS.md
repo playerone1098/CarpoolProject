@@ -119,3 +119,23 @@ To ensure the project is stable, secure, and ready for real users, the following
 - **Lazy Loading**: Lazy-load non-essential routes or modals.
 - **Image Optimization**: Pre-size and optimize raster assets; prefer SVG format where possible.
 - **Semantic HTML**: Use header tags, landmarks, and descriptive labels to ensure accessibility (a11y) and SEO friendliness.
+
+---
+
+## 5. Mandatory Rule: End-to-End Full-Stack Feature Development
+
+Every feature developed or modified in CarpoolProject MUST be implemented end-to-end across all architectural tiers:
+1. **Database Schema & Persistence**: Ensure Mongoose schemas, models, and indexes store and manage the required fields securely.
+2. **Backend API & Business Logic**: Implement or update NestJS DTOs, controllers, services, validation pipes, and authentication/authorization guards.
+3. **Frontend Application (React Native)**: Build/update user interfaces, components, state management, context, API service hooks, and visual feedback.
+
+No feature or enhancement is considered complete unless verified across DB, API, and the React Native frontend application.
+
+---
+
+## 6. Mandatory Rule: Backend Render Redeployment Reminder
+
+Whenever any changes, updates, bug fixes, or new endpoints/schemas are created or modified in the backend (`car-pool-backend/`):
+1. **Explicit Notification**: You MUST explicitly remind the user to commit and push code to Git (`git push`) so that Render automatically triggers a new production build and redeploys the backend server.
+2. **Push Command Suggestion**: Always provide the recommended Git commands to stage, commit, and push the backend changes to ensure Render receives the updated backend code seamlessly.
+
