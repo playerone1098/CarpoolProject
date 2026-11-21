@@ -3,7 +3,7 @@ self.addEventListener('push', function(event) {
   if (event.data) {
     try {
       data = event.data.json();
-    } catch (e) {
+    } catch (_e) {
       data = { title: 'RideShare', message: event.data.text() };
     }
   }

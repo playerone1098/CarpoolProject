@@ -66,7 +66,7 @@ export async function checkServerConnection(): Promise<boolean> {
     // A simple ping request to detect server presence
     await fetch(`${API_BASE_URL}/groups`, { method: 'GET', signal: AbortSignal.timeout(1800) });
     return true; // Connection successful (even if it returns a 401/404, the server is running)
-  } catch (e) {
+  } catch (_e) {
     // Network error (server is offline/not reachable)
     return false;
   }

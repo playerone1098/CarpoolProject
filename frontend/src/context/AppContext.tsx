@@ -192,7 +192,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const res = await api.notifications.unreadCount(user._id);
       setUnreadCount(res.count);
-    } catch (e) {
+    } catch (_e) {
       // Silently fail on poll errors
     }
   }, [user]);
@@ -214,7 +214,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             const profile = await api.users.getProfile(savedUserId);
             setUser(profile);
             setToken(savedToken);
-          } catch (e) {
+          } catch (_e) {
             console.error('Session expired or error loading profile. Logging out.');
             logout();
           }
@@ -241,7 +241,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const profile = await api.users.getProfile(savedUserId);
           setUser(profile);
           setToken(savedToken);
-        } catch (e) {
+        } catch (_e) {
           logout();
         }
       }
@@ -528,7 +528,7 @@ export const useApp = () => {
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
+    .replace(/-/g, '+')
     .replace(/_/g, '/');
 
   const rawData = window.atob(base64);

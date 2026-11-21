@@ -6,8 +6,26 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
     "build": "rimraf dist tsconfig.build.tsbuildinfo && nest build",
+    "test": "jest",
     "seed": "npx ts-node seed.ts",
     "db:clear": "npx ts-node clear-db.ts"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
   },
   "dependencies": {
     "@nestjs/cli": "^10.4.9",
@@ -35,12 +53,15 @@
     "socket.io": "^4.8.3",
     "sqlite3": "^5.1.7",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.0",
     "typeorm": "^0.3.27",
+    "typescript": "^5.3.0",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "@nestjs/testing": "^10.0.0"
+    "@nestjs/testing": "^10.0.0",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15"
   },
   "overrides": {
     "tar": "^7.5.21",
