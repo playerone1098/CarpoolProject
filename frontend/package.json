@@ -1,7 +1,8 @@
 {
-  "name": "car-pool-frontend",
+  "name": "carpool-frontend",
   "private": true,
   "version": "0.0.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "start": "vite",

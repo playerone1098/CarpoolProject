@@ -29,7 +29,7 @@ export class NotificationsController {
   @Get('vapid-public-key')
   getVapidPublicKey() {
     return {
-      publicKey: process.env.VAPID_PUBLIC_KEY || 'BFP3qdq9BnXwPPbCG1WwU1tbgSYd3rO4vGXwAT5Jv4wSc9_E1s2aof6jIbhxxEL4dXmWf8dNUiWNRtLwqf-l8_k'
+      publicKey: process.env.VAPID_PUBLIC_KEY || 'mock-vapid-public-key-offline-mode'
     };
   }
 

@@ -438,7 +438,7 @@ export const ProfileHelp: React.FC = () => {
         <h4 style={{ fontSize: '0.9rem', marginBottom: '8px', fontWeight: 700 }}>Need more assistance?</h4>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>Our dedicated help desk is available to resolve issues or field feature recommendations.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.8rem' }}>
-          <div>✉️ <strong>Email support:</strong> <a href="mailto:support@carpoolshare.com" style={{ color: 'var(--accent-light)', textDecoration: 'underline' }}>support@carpoolshare.com</a></div>
+          <div>✉️ <strong>Email support:</strong> <a href="mailto:support@example.com" style={{ color: 'var(--accent-light)', textDecoration: 'underline' }}>support@example.com</a></div>
           <div>📞 <strong>Phone assistance:</strong> <a href="tel:+18005550199" style={{ color: 'var(--accent-light)', textDecoration: 'underline' }}>+1 (800) 555-0199</a></div>
         </div>
       </div>
