@@ -41,7 +41,7 @@ Our backend utilizes NestJS. To enforce modularity, each resource module resides
 ### Standard Module Layout
 For any resource, eg. `rides`, the structure MUST be:
 ```
-car-pool-backend/src/rides/
+backend/src/rides/
 ├── dto/                             # Data Transfer Objects (DTOs)
 │   ├── create-ride.dto.ts
 │   └── update-ride.dto.ts
@@ -67,7 +67,7 @@ Our React frontend must be structured, component-driven, and highly reusable.
 
 ### Folder Structure
 ```
-car-pool-frontend/src/
+frontend/src/
 ├── assets/                          # Static assets (images, vectors)
 ├── components/                      # Modular UI components
 │   ├── auth/                        # Authentication views (Login, Register, OTP forms)
@@ -135,7 +135,7 @@ No feature or enhancement is considered complete unless verified across DB, API,
 
 ## 6. Mandatory Rule: Backend Render Redeployment Reminder
 
-Whenever any changes, updates, bug fixes, or new endpoints/schemas are created or modified in the backend (`car-pool-backend/`):
+Whenever any changes, updates, bug fixes, or new endpoints/schemas are created or modified in the backend (`backend/`):
 1. **Explicit Notification**: You MUST explicitly remind the user to commit and push code to Git (`git push`) so that Render automatically triggers a new production build and redeploys the backend server.
 2. **Push Command Suggestion**: Always provide the recommended Git commands to stage, commit, and push the backend changes to ensure Render receives the updated backend code seamlessly.
 
